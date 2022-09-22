@@ -98,8 +98,9 @@ export class LoggedController{
                 req.outCondition ? req.outCondition : searchAccountByID.password // Password
             )
 
-            console.log('UPDATE:', updateAccount);
-
+            return res.status(200).json({
+                message: 'Conta atualizada com sucesso !'
+            })
         }
         catch(error){
             console.log(error);
