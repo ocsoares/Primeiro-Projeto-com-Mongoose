@@ -47,6 +47,7 @@
     "ioredis": "^5.2.2",
     "jsonwebtoken": "^8.5.1",
     "mongodb": "^4.10.0",
+    "mongoose": "^6.6.1",
     "pg": "^8.7.3",
     "uuid": "^9.0.0"
   },

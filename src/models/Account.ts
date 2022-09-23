@@ -1,82 +1,19 @@
-import AppMongoClient from "../database/database";
-import bcrypt from 'bcrypt';
-import { ObjectId } from 'mongodb';
+import mongoose from "mongoose";
+import { Schema } from 'mongoose';
 
-export class Account{
-    username: string
-    email: string
-    password: string
-    // confirm_password: string   // NÃO precisa disso, porque NÃO tem sentido Armazenar a Confirmação da Senha, APENAS a Senha !! <<
-    type: string
+// OBS: De acordo com o tipo de Date especificada, o MongoDB converte AUTOMATICAMENTE !! <<
 
-    constructor(username: string, email: string, password: string, type: 'user' | 'admin'){
-        this.username = username,
-        this.email = email,
-        this.password = password,
-        this.type = type
-    }
-
-    saveInMongo(){
-        const accountsCollection = AppMongoClient.db().collection('accounts').insertOne({
-            username: this.username,
-            email: this.email,
-            password: this.password,
-            type: this.type 
-        })
-
-        return accountsCollection;
-    }
-
-        // Usei static nesse caso porque torna esse Método ESTÁTICO, ou seja, NÃO precisa INSTANCIAR novamente a Classe para usar esse Método (que
-        // nesse caso, teria que criar uma NOVA Conta para poder usar esse Método) !! << 
-    static getAccounts(){                                       // PRECISA transformar em Array, se não da ERRO !!
-        const accountsCollection = AppMongoClient.db().collection('accounts').find().toArray();
-
-        return accountsCollection;
-    }
-
-    static async searchAccountByID(id: string){
-        const idToBSON = new ObjectId(id);
-
-        const searchAccountByID = await AppMongoClient.db().collection('accounts').findOne({_id: idToBSON})
-
-        return searchAccountByID;
-    }
-
-    static async loginAccount(email: string, password: string){
-
-        const searchUserByEmail = await AppMongoClient.db().collection('accounts').findOne({email});
-
-        if(searchUserByEmail === null){
-            return false;
-        }
-
-        const decryptPassword = await bcrypt.compare(password, searchUserByEmail.password)
-
-        if(decryptPassword !== true){
-            return false;
-        }
-        
-        return searchUserByEmail;
-    }
-
-    static async deleteAccountByID(id: string){
-        const idToBSON = new ObjectId(id);
-
-        const deleteAccountByID = await AppMongoClient.db().collection('accounts').deleteOne({_id: idToBSON});
-
-        return deleteAccountByID
-    }
-
-    static async updateAccountByID(id: string, username?: string, email?: string, password?: string){
-
-            // Esse $set é responsável por EDITAR os Valores existentes na Collection !!
-        const updateAccountByID =  await AppMongoClient.db().collection('accounts').updateOne({_id: new ObjectId(id)}, {$set: {
-            username,
-            email,
-            password
-        }})
-
-        return updateAccountByID;
-    }
-}
+export const Account = mongoose.model(
+    'accounts', // Nome da Collection !! <<
+    new Schema({
+        username: { type: String, required: true, unique: true }, // A String PRECISA ser a Maíscula !! <<
+        email: { type: String, required: true, unique: true },
+        password: { type: String, required: true },
+        type: { type: String, required: true, enum: ['user', 'admin'], default: 'user' }, // enum = Valores aceitos !! // Se NÃO for informado, será 'user' !! <<
+        // created_at: { type: String, default: new Date().toLocaleString('pt-BR') } // OBS: Se for a data Padrão (objeto), passar apenas Date.now (SEM () ), porque o Mongoose Retorna a Própria Função AUTOMATICAMENTE !! <<
+        // created_at: { type: Date, required: true, default: Date.now}
+    },
+        { timestamps: true } // Cria AUTOMATICAMENTE um Schema createdAt (Fixo) e updateAt (Altera quando ALTERADO), no formato UTC, o que é uma Boa Prática para TODOS os Horários globais.
+        // OBS: Como ele é salvo em UTC, basta converter para o Padrão de Horário desejado, Tipando como Date e usando as Funções .toLocale... !! <<
+    )
+);

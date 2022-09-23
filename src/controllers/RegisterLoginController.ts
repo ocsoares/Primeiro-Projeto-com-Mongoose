@@ -1,34 +1,34 @@
-import { Request, Response, NextFunction } from 'express'
+import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { Account } from '../models/Account';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { ObjectId } from 'mongodb'
-import AppMongoClient from '../database/database';
+import { ObjectId } from 'mongodb';
 
 const __dirname = path.resolve();
 const registerLoginEJS = path.join(__dirname, '/src/views/register-login.ejs');
-interface IAccountInfo{
-    _id: ObjectId | string; // ObjectID porque o ID vem dentro de um Objeto BSON (do Mongo) !! <<
+interface IAccountInfo {
+    _id: ObjectId; // ObjectID porque o ID vem dentro de um Objeto BSON (do Mongo) !! <<
+    id: string;
     username: string;
     email: string;
     password: string;
     type: string;
 }
-export class RegisterLoginController{
-    async registerOrLogin(req: Request, res: Response, next: NextFunction){
+export class RegisterLoginController {
+    async registerOrLogin(req: Request, res: Response, next: NextFunction) {
 
-        const { 
+        const {
             registerUsername,
             registerEmail,
             registerPassword,
             registerConfirmPassword
-         } = req.body
+        } = req.body;
 
         const {
             loginEmail,
             loginPassword
-        } = req.body
+        } = req.body;
 
         if (registerUsername && registerEmail && registerPassword && registerConfirmPassword) {
             if (typeof (registerUsername) !== 'string' || typeof (registerEmail) !== 'string' || typeof (registerPassword) !== 'string' ||
@@ -37,17 +37,20 @@ export class RegisterLoginController{
                 return res.redirect('/account');
             }
 
-            if(registerPassword !== registerConfirmPassword){
+            if (registerPassword !== registerConfirmPassword) {
                 req.flash('errorFlash', 'As senhas não coincidem !');
                 return res.redirect('/account');
             }
-            
+
+            // Garantir que o Usuário E o Email NÃO exista ANTES do Mongoose abaixo, porque lá coloquei unique: true e vai dar ERRO se Existir !!
+
             try {
                 const encryptPassword = await bcrypt.hash(registerPassword, 10);
 
-                const createAccount = new Account(registerUsername, registerEmail, encryptPassword, 'user');
+                // Tentar criar com OUTRO type para ver se da erro...
+                const createAccount = new Account({ username: registerUsername, email: registerEmail, password: encryptPassword });
 
-                createAccount.saveInMongo();
+                await createAccount.save();
 
                 req.flash('successFlash', 'Conta criada com sucesso !');
                 return res.redirect('/account');
@@ -59,23 +62,31 @@ export class RegisterLoginController{
             }
         }
 
-        else if(loginEmail && loginPassword){
+        else if (loginEmail && loginPassword) {
 
-                    // Try catch só para mais Segurança, porque não precisava necessariamente...
-            try{
-                const verifyLogin = await Account.loginAccount(loginEmail, loginPassword) as unknown as false & IAccountInfo;
+            // Try catch só para mais Segurança, porque não precisava necessariamente...
+            try {
+                const searchAccountByEmail = await Account.findOne({ email: loginEmail }) as unknown as IAccountInfo;
 
-                    // Precisa converter o ID para STRING, com o .toString() !! <<
-                const { _id, username, email, type } = verifyLogin;
+                // Precisa converter o ID para STRING, com o .toString() !! <<
+                const { id, username, email, type } = searchAccountByEmail;
 
-                if(!verifyLogin){
+                if (!searchAccountByEmail) {
                     req.flash('errorFlash', 'Usuário ou senha inválida !');
                     console.log('Inválido.');
                     return res.redirect('/account');
                 }
 
+                const comparePassword = await bcrypt.compare(loginPassword, searchAccountByEmail.password);
+                console.log('comparePassword', comparePassword);
+
+                if (comparePassword !== true) {
+                    req.flash('errorFlash', 'Usuário ou senha inválida !');
+                    return res.redirect('/account');
+                }
+
                 const createJWT = jwt.sign({
-                    id: _id.toString(),
+                    id,
                     username,
                     email,
                     type
@@ -89,28 +100,22 @@ export class RegisterLoginController{
 
                 // Pega o Cookie SEM a Assinatura !! <<
                 const { session_auth } = req.signedCookies;
-                console.log('COOKIE:', session_auth);
-
-                const searchUserByID = await AppMongoClient.db().collection('accounts').findOne({_id: _id}) as IAccountInfo;
-                console.log('BY ID:', searchUserByID);
 
                 req.flash('successFlash', 'Logado com sucesso !');
 
                 return res.redirect('/dashboard');
             }
-            catch(error){
+            catch (error) {
                 console.log(error);
                 req.flash('errorFlash', 'Usuário ou senha inválida !');
                 return res.redirect('/account');
             }
 
         }
-        
-        else{
+
+        else {
             req.flash('errorFlash', 'Dados inválidos !');
             return res.render(registerLoginEJS);
         }
-
-        // next();
     }
 }
