@@ -1,5 +1,5 @@
-declare namespace Express{
-    interface Request{
-        outCondition: any
+declare namespace Express {
+    interface Request {
+
     }
 }

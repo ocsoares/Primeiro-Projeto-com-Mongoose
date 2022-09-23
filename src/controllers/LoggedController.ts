@@ -108,6 +108,8 @@ export class LoggedController {
                 });
             }
 
+            let encryptedPassword;
+
             // Fiz esse if para EVITAR que faça OUTRO Hash se a Senha for a MESMA !! <<
             if (password) {
                 const checkIfPasswordAreEquals = await bcrypt.compare(password, searchAccountByID.password);
@@ -118,19 +120,19 @@ export class LoggedController {
                     const encryptPassword = await bcrypt.hash(password, 10);
                     console.log('SENHA ENCRYPT:', encryptPassword);
 
-                    req.outCondition = encryptPassword;
-                    console.log('outCondition no IF:', req.outCondition);
+                    encryptedPassword = encryptPassword;
+                    console.log('encryptedPassword no IF:', encryptedPassword);
                 }
 
             }
 
-            console.log('outCondition FORA do if:', req.outCondition);
+            console.log('encryptedPassword FORA do if:', encryptedPassword);
 
             // Nesse caso, TEM QUE SER o _id como Propriedade e o ID como STRING no Valor !! <<
             const updateAccount = await Account.updateOne({ _id: idAccount }, {
                 username: username ? username : searchAccountByID.username,
                 email: email ? email : searchAccountByID.email,
-                password: req.outCondition ? req.outCondition : searchAccountByID.password
+                password: encryptedPassword ? encryptedPassword : searchAccountByID.password
             });
 
             console.log('UPDATE:', updateAccount);
