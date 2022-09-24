@@ -21,7 +21,6 @@ interface IAccountInfo {
 export class LoggedController {
     async showAllAccounts(req: Request, res: Response, next: NextFunction) {
         const getAllAccounts = await Account.find(); // Percorre TODOS os Documentos !! << // OBS: No handdlebars precisa do .lean APÓS o .find() !! <<
-        console.log('getAllAccounts:', getAllAccounts);
 
         res.render(dashboardEJS, { getAllAccounts });
 
@@ -34,9 +33,10 @@ export class LoggedController {
         try {
             // Nesse caso, NÃO precisa converter o ID para ObjectID, porque o Mongoose faz isso Automaticamente !! <<
             const showMyAccount = await Account.findById(idAccount) as IAccountInfo;
+            console.log('ACCOUNT:', showMyAccount);
 
             if (showMyAccount === null) {
-                return res.json({
+                return res.status(400).json({
                     message: 'Não foi possível encontrar sua conta. Tente novamente.'
                 });
             }
@@ -44,7 +44,7 @@ export class LoggedController {
             return res.json({
                 message: 'Sua conta foi encontrada com sucesso !',
                 account: showMyAccount,
-                currentUTC: {
+                brazilianUTC: {
                     createdAt: showMyAccount.createdAt.toLocaleString('pt-BR'),
                     updatedAt: showMyAccount.updatedAt.toLocaleString('pt-BR')
                 }
@@ -52,7 +52,8 @@ export class LoggedController {
 
         }
         catch (error) {
-            return res.json({
+            console.log(error);
+            return res.status(400).json({
                 message: 'Não foi possível encontrar sua conta. Tente novamente.'
             });
         }
@@ -62,18 +63,18 @@ export class LoggedController {
         const { idAccount } = req.params;
 
         try {
-            // Nesse caso, TEM QUE SER o _id como Propriedade e o ID como STRING no Valor !! <<
-            const deleteAccount = await Account.deleteOne({ _id: idAccount });
-            console.log('deleteAccount:', deleteAccount);
+            // Usei findByIDAndDelete porque ele PROCURA o ID ANTES de Deletar !! <<
+            // OBS: Nesse caso, TEM QUE SER o _id como Propriedade e o ID como STRING no Valor !! <<
+            const deleteAccount = await Account.findByIdAndDelete({ _id: idAccount });
 
-            if (deleteAccount.deletedCount === 0) {
+            if (deleteAccount === null) {
                 return res.status(400).json({
-                    message: 'Não foi possível deletar a conta. Confira se o ID é válido e tente novamente.'
+                    message: 'Conta não encontrada. Confira o ID e tente novamente. !'
                 });
             }
 
             return res.status(200).json({
-                message: `O usuário com o ID ${idAccount} foi deletado com sucesso !`
+                message: `O usuário '${deleteAccount.username}' com o ID ${idAccount} foi deletado com sucesso !`
             });
         }
 
@@ -113,20 +114,15 @@ export class LoggedController {
             // Fiz esse if para EVITAR que faça OUTRO Hash se a Senha for a MESMA !! <<
             if (password) {
                 const checkIfPasswordAreEquals = await bcrypt.compare(password, searchAccountByID.password);
-                console.log('SENHA ENCRYPT:', checkIfPasswordAreEquals);
 
                 // Se for false, a Senha é DIFERENTE, então Encripta essa Senha !!
                 if (checkIfPasswordAreEquals === false) {
                     const encryptPassword = await bcrypt.hash(password, 10);
-                    console.log('SENHA ENCRYPT:', encryptPassword);
 
                     encryptedPassword = encryptPassword;
-                    console.log('encryptedPassword no IF:', encryptedPassword);
                 }
 
             }
-
-            console.log('encryptedPassword FORA do if:', encryptedPassword);
 
             // Nesse caso, TEM QUE SER o _id como Propriedade e o ID como STRING no Valor !! <<
             const updateAccount = await Account.updateOne({ _id: idAccount }, {
@@ -134,8 +130,6 @@ export class LoggedController {
                 email: email ? email : searchAccountByID.email,
                 password: encryptedPassword ? encryptedPassword : searchAccountByID.password
             });
-
-            console.log('UPDATE:', updateAccount);
 
             return res.status(200).json({
                 message: 'Conta atualizada com sucesso !'

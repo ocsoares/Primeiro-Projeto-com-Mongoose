@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import connectFlash from 'connect-flash';
 import bodyParser from 'body-parser';
 import cors from 'cors';
-import AppMongoClient from './database/database';
+import MongooseDatabase from './database/database';
 import registerLoginRoute from './routes/registerLoginRoute';
 import adminRoute from './routes/adminRoute';
 import loggedRoute from './routes/loggedRoutes';
@@ -19,8 +19,8 @@ import loggedRoute from './routes/loggedRoutes';
 const __dirname = path.resolve();
 
 
-    // Daqui pra baixo colocar tudo no Inicializador do Banco de Dados !!
-AppMongoClient // No vídeo ele NÃO colocou isso, mas TIVE que colocar porque NÃO estava Executando !! <<
+// Daqui pra baixo colocar tudo no Inicializador do Banco de Dados !!
+MongooseDatabase; // No vídeo ele NÃO colocou isso, mas TIVE que colocar porque NÃO estava Executando !! <<
 
 const server = express();
 
@@ -58,7 +58,7 @@ server.use((req: Request, res: Response, next: NextFunction) => {
     res.locals.successFlash = req.flash('successFlash');
 
     next();
-})
+});
 
 server.use(registerLoginRoute);
 server.use(adminRoute);
@@ -66,8 +66,8 @@ server.use(loggedRoute);
 
 server.get('/', (req: Request, res: Response) => {
     res.redirect('/account');
-})
+});
 
 server.listen(port, () => {
     console.log(`Servidor rodando remotamente em ${localhost}:${port}`);
-})
+});
